@@ -9,10 +9,13 @@
     </textarea>
     <br>
     <div v-on:click="emptyTextStatus"> {{this.textStatus}} </div>
-    <div v-for="(file, key) in files" class="file-listing" :key="key">
+    <div v-for="(file, key) in files" class="file-listing" :key="key" >
       <img class="filename" v-bind:ref="'filename'+parseInt( key )"
       />
       {{ file.name }}>
+      <button type="button" class="close" aria-label="Close" @click="deleteFile( key )">
+        <span aria-hidden="true">×</span>
+      </button>
     </div>
     <br>
     <b-button
@@ -32,7 +35,7 @@ export default {
     return {
       lastFile: Object,
       files: [],
-      textStatus: '123'
+      textStatus: ''
       // thisjson: this.currJson
     }
   },
@@ -41,15 +44,49 @@ export default {
     // updateJson: Function
   },
   methods: {
+    deleteFile (key) {
+      this.files.splice(key, 1)
+    },
     emptyTextStatus () {
       this.textStatus = ' '
+    },
+    getCookie (name) {
+      let cookieValue = null
+      console.log('cookieValue')
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';')
+        console.log('cookies: ' + cookies)
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim()
+          // Does this cookie string begin with the name we want?
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1))
+            break
+          }
+        }
+      }
+      return cookieValue
     },
     dataToBackend (data) {
       var tosend = new FormData()
       console.log(data.name)
-      tosend.append('json', data)
+      console.log(data)
+      var csrftoken = this.getCookie('csrftoken')
+      var headers = new Headers()
+      headers.append('X-CSRFToken', csrftoken)
+      // headers.append('content-type', 'application/json')
+      // headers.append('Access-Control-Allow-Origin', 'http://0.0.0.0:8000')
+      // headers.append('Access-Control-Allow-Credentials', 'true')
+      tosend.append('json', data.json)
+      tosend.append('name', data.name)
       fetch('http://localhost:8000/json_storage/add/', {
         method: 'POST',
+        // headers: {
+        //   'Access-Control-Allow-Origin': 'http://0.0.0.0:8000, http://localhost:8000',
+        //   'Access-Control-Allow-Headers': 'Access-Control-Allow-Origin, Access-Control-Allow-Headers'
+        // },
+        headers: headers,
+        // credentials: 'include',
         body: tosend
       })
         .then(res => {
@@ -57,13 +94,12 @@ export default {
         })
     },
     addText () {
-      this.isJson('t')
-        .then(value => {
-          if (value) {
-            console.log(this.currJson)
-            this.dataToBackend(this.currJson)
-          }
+      if (this.isJson('t')) {
+        console.log(this.currJson)
+        this.dataToBackend({'json': this.currJson,
+          'name': ''
         })
+      }
     },
     addFile (e) {
       let droppedFile = e.dataTransfer.files
@@ -75,8 +111,8 @@ export default {
 
       var temp = this.isJson('f')
       temp.then(res => {
-        state = res
-        console.log('then block ' + res + state)
+        state = res[0]
+        console.log('then block ' + res[0] + ' ' + res[1])
         if (!state) {
           this.textStatus = 'file is not json'
           console.log('file is not json')
@@ -84,13 +120,14 @@ export default {
         } else {
           console.log('file is json')
           this.files.push(...droppedFile)
-          console.log(this.lastFile[0])
-          console.log(this.lastFile[0].name)
-          this.dataToBackend(this.lastFile[0])
+          console.log(this.lastFile)
+          console.log()
+          this.dataToBackend({'json': res[1],
+            'name': this.lastFile[0].name
+          })
           this.getImagePreviews()
         }
       })
-      //
     },
     getImagePreviews () {
       for (let i = 0; i < this.files.length; i++) {
@@ -120,6 +157,10 @@ export default {
       this.$refs['jsonInputArea'].classList.remove('wrong')
       this.$refs['jsonInputArea'].classList.remove('right')
     },
+    setFile (json, name) {
+      this.lastFile = {'json': json,
+        'name': name}
+    },
     isJson (key) {
       var data = ''
       if (key === 'f') {
@@ -131,9 +172,9 @@ export default {
               console.log('try ' + data)
               JSON.parse(data)
             } catch (e) {
-              resolve(false)
+              resolve([false, reader.result])
             }
-            resolve(true)
+            resolve([true, reader.result])
           }
           reader.readAsText(this.lastFile[0])
         })

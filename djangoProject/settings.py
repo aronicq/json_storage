@@ -25,12 +25,13 @@ SECRET_KEY = 'd%uxj78ab6r$!fpb^b!$&-@vf(8mfqh2t046%$m7k#g6g9nkuf'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["0.0.0.0", "localhost"]
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
     'json_storage.apps.JsonStorageConfig',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -44,7 +45,8 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -55,7 +57,7 @@ ROOT_URLCONF = 'djangoProject.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR + 'templates'],
+        'DIRS': [BASE_DIR + '/' + 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -80,8 +82,8 @@ DATABASES = {
         'NAME': 'postgres',
         'USER': 'postgres',
         'PASSWORD': 'postgres',
-        'HOST': '0.0.0.0',
-        'PORT': '5433'
+        'HOST': 'db',
+        'PORT': '5432'
     }
 }
 
@@ -121,10 +123,12 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "templates/static"),
+]
+STATIC_URL = 'static/'
 
-STATIC_URL = '/static/'
-
-SITE_URL = "http://0.0.0.0:8000"
+# SITE_URL = "http://0.0.0.0:8000"
 
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -135,6 +139,7 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 CORS_ALLOW_HEADERS = [
+    'Access-Control-Allow-Origin',
     'accept',
     'accept-encoding',
     'authorization',
@@ -145,6 +150,6 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with'
 ]
-CORS_ORIGIN_ALLOW_ALL = True
+# CORS_ORIGIN_ALLOW_ALL = True
 
-CSRF_TRUSTED_ORIGINS = ["http://localhost:8080"]
+CSRF_TRUSTED_ORIGINS = ["http://localhost:8000"]
