@@ -8,8 +8,8 @@ services:
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
-#    ports:
-#      - 5433:5432
+    ports:
+      - 5433:5432
 
   backend:
     container_name: backend.storage

@@ -9,21 +9,22 @@
     </textarea>
     <br>
     <div v-on:click="emptyTextStatus"> {{this.textStatus}} </div>
-    <div v-for="(file, key) in files" class="file-listing" :key="key" >
-      <img class="filename" v-bind:ref="'filename'+parseInt( key )"
-      />
-      {{ file.name }}>
-      <button type="button" class="close" aria-label="Close" @click="deleteFile( key )">
-        <span aria-hidden="true">×</span>
-      </button>
-    </div>
-    <br>
     <b-button
       variant="primary"
       @click="addText"
     >
       Submit
     </b-button>
+    <div class="weight"> {{ this.commonWeight }} bytes </div>
+    <div v-for="(file, key) in files" class="file-listing" :key="key" >
+<!--      <img class="filename" v-bind:ref="'filename'+parseInt( key )"-->
+<!--      />-->
+      {{ file.name }}
+      <button type="button" class="close" aria-label="Close" @click="deleteFile( file, key )">
+        <span aria-hidden="true">×</span>
+      </button>
+    </div>
+    <br>
 <!--    <p>{{currJson}}</p>-->
   </div>
 </template>
@@ -35,27 +36,61 @@ export default {
     return {
       lastFile: Object,
       files: [],
-      textStatus: ''
-      // thisjson: this.currJson
+      textStatus: '',
+      commonWeight: 0
     }
   },
   props: {
     currJson: String
-    // updateJson: Function
+  },
+  mounted () {
+    this.requestFiles()
   },
   methods: {
-    deleteFile (key) {
-      this.files.splice(key, 1)
+    countCommonWeight () {
+      let sum = 0
+      this.files.forEach(file => {
+        sum += file.data.length
+      })
+      this.commonWeight = sum
+    },
+    requestFiles () {
+      fetch('http://localhost:8000/json_storage/get/all/', {method: 'GET'})
+        .then(response => response.json())
+        .then(data => new Promise(function (resolve, reject) {
+          let result = []
+          console.log(data)
+          for (let i = 0; i < data.length; i++) {
+            let currentRow = data[i]
+            result.push(
+              {
+                name: currentRow.fields.name + '(created: ' + currentRow.fields.date_of_creation + ')',
+                id: currentRow.pk,
+                data: currentRow.fields.json_content
+              }
+            )
+          }
+          resolve(result)
+        }))
+        .then(result => {
+          this.files = result
+          this.countCommonWeight()
+        })
+    },
+    deleteFile (file, key) {
+      this.files.splice(key, 1) // not very consistant, should be requestfiles and autorender?
+      fetch('http://localhost:8000/json_storage/delete/' + file.id)
+      this.countCommonWeight()
     },
     emptyTextStatus () {
       this.textStatus = ' '
     },
     getCookie (name) {
       let cookieValue = null
-      console.log('cookieValue')
+      // console.log('cookieValue')
       if (document.cookie && document.cookie !== '') {
         const cookies = document.cookie.split(';')
-        console.log('cookies: ' + cookies)
+        // console.log('cookies: ' + cookies)
         for (let i = 0; i < cookies.length; i++) {
           const cookie = cookies[i].trim()
           // Does this cookie string begin with the name we want?
@@ -69,37 +104,32 @@ export default {
     },
     dataToBackend (data) {
       var tosend = new FormData()
-      console.log(data.name)
-      console.log(data)
+      // console.log(data.name)
+      // console.log(data)
       var csrftoken = this.getCookie('csrftoken')
       var headers = new Headers()
-      headers.append('X-CSRFToken', csrftoken)
-      // headers.append('content-type', 'application/json')
-      // headers.append('Access-Control-Allow-Origin', 'http://0.0.0.0:8000')
-      // headers.append('Access-Control-Allow-Credentials', 'true')
+      headers.append('x-CSRFtoken', csrftoken)
       tosend.append('json', data.json)
       tosend.append('name', data.name)
       fetch('http://localhost:8000/json_storage/add/', {
         method: 'POST',
-        // headers: {
-        //   'Access-Control-Allow-Origin': 'http://0.0.0.0:8000, http://localhost:8000',
-        //   'Access-Control-Allow-Headers': 'Access-Control-Allow-Origin, Access-Control-Allow-Headers'
-        // },
         headers: headers,
-        // credentials: 'include',
         body: tosend
       })
         .then(res => {
-          console.log('response =' + res)
+          console.log('file added')
+          this.files.length = 0
+          this.requestFiles()
         })
     },
     addText () {
       if (this.isJson('t')) {
         console.log(this.currJson)
-        this.dataToBackend({'json': this.currJson,
+        this.dataToBackend({
+          'json': this.currJson,
           'name': ''
         })
-      }
+      } else this.textStatus = 'string is not json'
     },
     addFile (e) {
       let droppedFile = e.dataTransfer.files
@@ -112,20 +142,21 @@ export default {
       var temp = this.isJson('f')
       temp.then(res => {
         state = res[0]
-        console.log('then block ' + res[0] + ' ' + res[1])
+        // console.log('then block ' + res[0] + ' ' + res[1])
         if (!state) {
           this.textStatus = 'file is not json'
-          console.log('file is not json')
+          // console.log('file is not json')
           // console.log(this.lastFile[0] + this.isJson('f'))
         } else {
-          console.log('file is json')
+          // console.log('file is json')
           this.files.push(...droppedFile)
-          console.log(this.lastFile)
-          console.log()
-          this.dataToBackend({'json': res[1],
+          // console.log(this.lastFile)
+          // console.log()
+          this.dataToBackend({
+            'json': res[1],
             'name': this.lastFile[0].name
           })
-          this.getImagePreviews()
+          // this.getImagePreviews()
         }
       })
     },
@@ -158,8 +189,10 @@ export default {
       this.$refs['jsonInputArea'].classList.remove('right')
     },
     setFile (json, name) {
-      this.lastFile = {'json': json,
-        'name': name}
+      this.lastFile = {
+        'json': json,
+        'name': name
+      }
     },
     isJson (key) {
       var data = ''
@@ -169,7 +202,7 @@ export default {
           reader.onload = function (e) {
             data = reader.result
             try {
-              console.log('try ' + data)
+              // console.log('try ' + data)
               JSON.parse(data)
             } catch (e) {
               resolve([false, reader.result])
@@ -195,14 +228,16 @@ export default {
 
 <style>
 
+div.weight {
+  margin: auto;
+  width: 200px;
+}
+
 div.file-listing{
   width: 400px;
   margin: auto;
   padding: 10px;
   border-bottom: 1px solid #ddd;
-}
-div.file-listing img{
-  height: 100px;
 }
 
 .wrong {

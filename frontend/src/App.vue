@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <Header />
-    <p>{{currJson}}</p>
+<!--    <p>{{currJson}}</p>-->
     <Body
       v-bind:currJson="currJson"
     @updateJson="updateJson"/>
